@@ -38,13 +38,13 @@ func (c *consumer) Cleanup(sarama.ConsumerGroupSession) (err error) {
 func (c *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) (err error) {
 	for msg := range claim.Messages() {
 		session.MarkMessage(msg, "")
-		c.handleMessage(msg, &session)
+		c.handleMessage(msg, session)
 	}
 
 	return nil
 }
 
-func (c *consumer) handleMessage(msg *sarama.ConsumerMessage, session *sarama.ConsumerGroupSession) {
+func (c *consumer) handleMessage(msg *sarama.ConsumerMessage, session sarama.ConsumerGroupSession) {
 	ck := contextKey(contextKeyValue)
 	ctx := context.WithValue(context.Background(), ck, msg.Key)
 	c.handlers[msg.Topic](ctx, msg.Value, session)

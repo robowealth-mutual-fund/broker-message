@@ -2,6 +2,7 @@ package message
 
 import (
 	"context"
+	"github.com/Shopify/sarama"
 	"github.com/robowealth-mutual-fund/broker-message/common"
 	"github.com/stretchr/testify/suite"
 	"syscall"
@@ -26,6 +27,7 @@ func (suite *TestSuite) SetupTest() {
 		Group:        "test-group",
 		Host:         []string{"localhost:9094"},
 		Debug:        true,
+		AutoCommit:   true,
 	}
 }
 
@@ -45,7 +47,7 @@ func (suite *TestSuite) TestConsumeKafkaMessage() {
 	broker.RegisterHandler(otherTopic, handler)
 
 	go broker.Start(func(ctx context.Context, err error) {})
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	msg := []byte("test message")
 	err = broker.SendTopicMessage(topic, msg)
@@ -53,16 +55,41 @@ func (suite *TestSuite) TestConsumeKafkaMessage() {
 	otherMsg := []byte("test other message")
 	err = broker.SendTopicMessage(otherTopic, otherMsg)
 	suite.NoError(err)
+	suite.Equal(msg, <-suite.msgCh)
+	suite.Equal(otherMsg, <-suite.otherMsgCh)
+}
 
+func (suite *TestSuite) TestConsumeKafkaMessageManualCommit() {
+	suite.conf.AutoCommit = false
+	broker, err := NewBroker(common.KafkaBrokerType, suite.conf)
+	suite.NoError(err)
+
+	topic := "test-topic"
+	handler := suite.newManualCommitSuccessHandler()
+	broker.RegisterHandler(topic, handler)
+	otherTopic := "test-other-topic"
+	handler = suite.newOtherManualCommitSuccessHandler()
+	broker.RegisterHandler(otherTopic, handler)
+
+	go broker.Start(func(ctx context.Context, err error) {})
+	time.Sleep(5 * time.Second)
+
+	msg := []byte("test message")
+	err = broker.SendTopicMessage(topic, msg)
+	suite.NoError(err)
+
+	otherMsg := []byte("test other message")
+	err = broker.SendTopicMessage(otherTopic, otherMsg)
+	suite.NoError(err)
 	suite.Equal(msg, <-suite.msgCh)
 	suite.Equal(otherMsg, <-suite.otherMsgCh)
 }
 
 func (suite *TestSuite) newSuccessHandler() (handler common.Handler) {
-	return func(ctx context.Context, msg []byte) { suite.msgCh <- msg }
+	return func(ctx context.Context, msg []byte, session sarama.ConsumerGroupSession) { suite.msgCh <- msg }
 }
 func (suite *TestSuite) newOtherSuccessHandler() (handler common.Handler) {
-	return func(ctx context.Context, msg []byte) { suite.otherMsgCh <- msg }
+	return func(ctx context.Context, msg []byte, session sarama.ConsumerGroupSession) { suite.otherMsgCh <- msg }
 }
 
 func (suite *TestSuite) TestNewBrokerWithInvalidBroker() {
@@ -75,7 +102,6 @@ func (suite *TestSuite) TestNewBrokerWithInvalidVersion() {
 	_, err := NewBroker(common.KafkaBrokerType, suite.conf)
 	suite.Error(err)
 }
-
 
 func (suite *TestSuite) TestStartKafkaBrokerWithoutHandler() {
 	broker, err := NewBroker(common.KafkaBrokerType, suite.conf)
@@ -93,7 +119,6 @@ func (suite *TestSuite) TestNewKafkaBrokerWithNilHost() {
 	_, err := NewBroker(common.KafkaBrokerType, suite.conf)
 	suite.Error(err)
 }
-
 
 func (suite *TestSuite) TestConsumeNoHandlerKafkaMessage() {
 	broker, err := NewBroker(common.KafkaBrokerType, suite.conf)
@@ -119,6 +144,20 @@ func (suite *TestSuite) TestSignalInterruptKafka() {
 
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	suite.Error(<-ch)
+}
+
+func (suite *TestSuite) newManualCommitSuccessHandler() (handler common.Handler) {
+	return func(ctx context.Context, msg []byte, session sarama.ConsumerGroupSession) {
+		suite.msgCh <- msg
+		session.Commit()
+	}
+}
+
+func (suite *TestSuite) newOtherManualCommitSuccessHandler() (handler common.Handler) {
+	return func(ctx context.Context, msg []byte, session sarama.ConsumerGroupSession) {
+		suite.otherMsgCh <- msg
+		session.Commit()
+	}
 }
 
 func TestTestSuite(t *testing.T) {

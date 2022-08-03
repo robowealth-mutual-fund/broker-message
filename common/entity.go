@@ -15,5 +15,5 @@ type Config struct {
 	AutoCommit   bool
 }
 
-type Handler func(ctx context.Context, msg []byte, session *sarama.ConsumerGroupSession)
+type Handler func(ctx context.Context, msg []byte, session sarama.ConsumerGroupSession)
 type CloseCallback func(ctx context.Context, err error)
