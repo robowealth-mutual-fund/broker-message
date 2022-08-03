@@ -34,6 +34,7 @@ func (suite *TestSuite) SetupWrongVersionTest() {
 }
 
 func (suite *TestSuite) TestConsumeKafkaMessage() {
+	suite.conf.AutoCommit = true
 	broker, err := NewBroker(common.KafkaBrokerType, suite.conf)
 	suite.NoError(err)
 
@@ -46,6 +47,36 @@ func (suite *TestSuite) TestConsumeKafkaMessage() {
 
 	go broker.Start(func(ctx context.Context, err error) {})
 	time.Sleep(10 * time.Second)
+
+	suite.NotNil(broker.Session())
+
+	msg := []byte("test message")
+	err = broker.SendTopicMessage(topic, msg)
+	suite.NoError(err)
+	otherMsg := []byte("test other message")
+	err = broker.SendTopicMessage(otherTopic, otherMsg)
+	suite.NoError(err)
+
+	suite.Equal(msg, <-suite.msgCh)
+	suite.Equal(otherMsg, <-suite.otherMsgCh)
+}
+
+func (suite *TestSuite) TestConsumeKafkaMessageAutoCommitFalse() {
+	suite.conf.AutoCommit = false
+	broker, err := NewBroker(common.KafkaBrokerType, suite.conf)
+	suite.NoError(err)
+
+	topic := "test-topic"
+	handler := suite.newSuccessHandler()
+	broker.RegisterHandler(topic, handler)
+	otherTopic := "test-other-topic"
+	handler = suite.newOtherSuccessHandler()
+	broker.RegisterHandler(otherTopic, handler)
+
+	go broker.Start(func(ctx context.Context, err error) {})
+	time.Sleep(10 * time.Second)
+
+	suite.NotNil(broker.Session())
 
 	msg := []byte("test message")
 	err = broker.SendTopicMessage(topic, msg)
@@ -76,11 +107,11 @@ func (suite *TestSuite) TestNewBrokerWithInvalidVersion() {
 	suite.Error(err)
 }
 
-
 func (suite *TestSuite) TestStartKafkaBrokerWithoutHandler() {
 	broker, err := NewBroker(common.KafkaBrokerType, suite.conf)
 	suite.NoError(err)
 	go broker.Start(func(ctx context.Context, err error) {})
+	suite.NotNil(broker.Session())
 }
 
 func (suite *TestSuite) TestNewKafkaBrokerWithNilConfig() {
@@ -94,13 +125,13 @@ func (suite *TestSuite) TestNewKafkaBrokerWithNilHost() {
 	suite.Error(err)
 }
 
-
 func (suite *TestSuite) TestConsumeNoHandlerKafkaMessage() {
 	broker, err := NewBroker(common.KafkaBrokerType, suite.conf)
 	suite.NoError(err)
 
 	ch := make(chan error)
 	go broker.Start(func(ctx context.Context, err error) { ch <- err })
+	suite.NotNil(broker.Session())
 
 	suite.Error(<-ch)
 }
@@ -116,6 +147,7 @@ func (suite *TestSuite) TestSignalInterruptKafka() {
 	ch := make(chan error)
 	go broker.Start(func(ctx context.Context, err error) { ch <- err })
 	time.Sleep(10 * time.Second)
+	suite.NotNil(broker.Session())
 
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	suite.Error(<-ch)

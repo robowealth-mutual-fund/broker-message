@@ -23,9 +23,13 @@ type broker struct {
 	cleanupReady  chan error
 }
 
+func (kafka *broker) Session() sarama.ConsumerGroupSession {
+	return kafka.consumer.session()
+}
+
 func MakeKafkaBroker(givenConf *common.Config) (k *broker, err error) {
 	k = &broker{
-		conf: givenConf,
+		conf:         givenConf,
 		cleanupReady: make(chan error),
 	}
 
@@ -67,7 +71,7 @@ func (kafka *broker) startConsumingLoop() {
 	var err error
 	defer func() {
 		kafka.consumer.becomeReady()
-		kafka.cleanupReady<-err
+		kafka.cleanupReady <- err
 	}()
 
 	for {

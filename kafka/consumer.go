@@ -12,9 +12,11 @@ type contextKey string
 const contextKeyValue = "key"
 
 type consumer struct {
-	ready    chan bool
-	handlers map[string]common.Handler
-	topics   []string
+	autoCommit   bool
+	ready        chan bool
+	handlers     map[string]common.Handler
+	topics       []string
+	sessionGroup sarama.ConsumerGroupSession
 }
 
 func (c *consumer) Setup(sarama.ConsumerGroupSession) (err error) {
@@ -36,24 +38,33 @@ func (c *consumer) Cleanup(sarama.ConsumerGroupSession) (err error) {
 }
 
 func (c *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) (err error) {
+	c.sessionGroup = session
 	for msg := range claim.Messages() {
 		session.MarkMessage(msg, "")
-		c.handleMessage(msg, &session)
+		c.handleMessage(msg)
+		if c.autoCommit {
+			session.Commit()
+		}
 	}
 
 	return nil
 }
 
-func (c *consumer) handleMessage(msg *sarama.ConsumerMessage, session *sarama.ConsumerGroupSession) {
+func (c *consumer) session() (sessions sarama.ConsumerGroupSession) {
+	return c.sessionGroup
+}
+
+func (c *consumer) handleMessage(msg *sarama.ConsumerMessage) {
 	ck := contextKey(contextKeyValue)
 	ctx := context.WithValue(context.Background(), ck, msg.Key)
-	c.handlers[msg.Topic](ctx, msg.Value, session)
+	c.handlers[msg.Topic](ctx, msg.Value)
 }
 
 func (kafka *broker) initGroupHandler() {
 	kafka.consumer = &consumer{
-		ready:    make(chan bool),
-		handlers: map[string]common.Handler{},
-		topics:   []string{},
+		ready:      make(chan bool),
+		handlers:   map[string]common.Handler{},
+		topics:     []string{},
+		autoCommit: kafka.conf.AutoCommit,
 	}
 }
