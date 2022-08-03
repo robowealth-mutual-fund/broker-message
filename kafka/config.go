@@ -38,10 +38,6 @@ func (kafka *broker) newSaramaConfig() (conf *sarama.Config, err error) {
 	conf.Producer.Return.Successes = true
 	conf.Consumer.Offsets.AutoCommit.Enable = kafka.conf.AutoCommit
 
-	n := &nn{}
-
-	conf.Producer.Interceptors = []sarama.ProducerInterceptor{n}
-
 	return conf, nil
 }
 
@@ -49,11 +45,4 @@ func (kafka *broker) initUUIDGenerator() {
 	rand.Seed(time.Now().UnixNano())
 	nodeNum := rand.Intn(MaxSnowFlakeNodeNum) - 1
 	kafka.uuid, _ = snowflake.NewNode(int64(nodeNum))
-}
-
-type nn struct {
-}
-
-func (n *nn) OnSend(msg *sarama.ProducerMessage) {
-
 }
