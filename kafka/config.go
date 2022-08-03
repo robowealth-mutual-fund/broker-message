@@ -36,6 +36,7 @@ func (kafka *broker) newSaramaConfig() (conf *sarama.Config, err error) {
 	conf.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
 	conf.Producer.Return.Errors = true
 	conf.Producer.Return.Successes = true
+	conf.Consumer.Offsets.AutoCommit.Enable = kafka.conf.AutoCommit
 
 	return conf, nil
 }

@@ -1,6 +1,9 @@
 package common
 
-import "context"
+import (
+	"context"
+	"github.com/Shopify/sarama"
+)
 
 type Config struct {
 	BackOffTime  int
@@ -9,7 +12,8 @@ type Config struct {
 	Group        string
 	Host         []string
 	Debug        bool
+	AutoCommit   bool
 }
 
-type Handler func(ctx context.Context, msg []byte)
+type Handler func(ctx context.Context, msg []byte, session *sarama.ConsumerGroupSession)
 type CloseCallback func(ctx context.Context, err error)

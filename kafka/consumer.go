@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/robowealth-mutual-fund/broker-message/common"
 )
@@ -22,7 +23,11 @@ func (c *consumer) Setup(sarama.ConsumerGroupSession) (err error) {
 }
 
 func (c *consumer) becomeReady() {
-	defer func() {recover()}()
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("Setup consumer group found error: %s", err)
+		}
+	}()
 	close(c.ready)
 }
 
@@ -32,17 +37,17 @@ func (c *consumer) Cleanup(sarama.ConsumerGroupSession) (err error) {
 
 func (c *consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) (err error) {
 	for msg := range claim.Messages() {
-		c.handleMessage(msg)
 		session.MarkMessage(msg, "")
+		c.handleMessage(msg, &session)
 	}
 
 	return nil
 }
 
-func (c *consumer) handleMessage(msg *sarama.ConsumerMessage) {
+func (c *consumer) handleMessage(msg *sarama.ConsumerMessage, session *sarama.ConsumerGroupSession) {
 	ck := contextKey(contextKeyValue)
 	ctx := context.WithValue(context.Background(), ck, msg.Key)
-	c.handlers[msg.Topic](ctx, msg.Value)
+	c.handlers[msg.Topic](ctx, msg.Value, session)
 }
 
 func (kafka *broker) initGroupHandler() {
