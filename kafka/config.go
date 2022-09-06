@@ -3,12 +3,13 @@ package kafka
 import (
 	"context"
 	"errors"
-	"github.com/Shopify/sarama"
-	"github.com/bwmarrin/snowflake"
 	"log"
 	"math/rand"
 	"os"
 	"time"
+
+	"github.com/Shopify/sarama"
+	"github.com/bwmarrin/snowflake"
 )
 
 const MaxSnowFlakeNodeNum = 1024
@@ -37,6 +38,7 @@ func (kafka *broker) newSaramaConfig() (conf *sarama.Config, err error) {
 	conf.Producer.Return.Errors = true
 	conf.Producer.Return.Successes = true
 	conf.Consumer.Offsets.AutoCommit.Enable = kafka.conf.AutoCommit
+	conf.Producer.Retry.Max = 0
 
 	n := &nn{}
 
