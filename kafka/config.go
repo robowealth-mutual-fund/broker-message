@@ -38,7 +38,7 @@ func (kafka *broker) newSaramaConfig() (conf *sarama.Config, err error) {
 	conf.Producer.Return.Errors = true
 	conf.Producer.Return.Successes = true
 	conf.Consumer.Offsets.AutoCommit.Enable = kafka.conf.AutoCommit
-	conf.Producer.Retry.Max = 0
+	conf.Producer.Retry.Max = kafka.conf.MaximumRetry
 	conf.Producer.Retry.Backoff = time.Second * 5
 
 	return conf, nil
