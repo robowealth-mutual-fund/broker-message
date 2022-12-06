@@ -57,7 +57,7 @@ func (c *consumer) session() (sessions sarama.ConsumerGroupSession) {
 func (c *consumer) handleMessage(msg *sarama.ConsumerMessage) {
 	ck := contextKey(contextKeyValue)
 	ctx := context.WithValue(context.Background(), ck, msg.Key)
-	c.handlers[msg.Topic](ctx, msg.Value)
+	c.handlers[msg.Topic](ctx, msg.Value, msg.Offset)
 }
 
 func (kafka *broker) initGroupHandler() {

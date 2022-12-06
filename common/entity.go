@@ -14,5 +14,5 @@ type Config struct {
 	AutoCommit   bool
 }
 
-type Handler func(ctx context.Context, msg []byte)
+type Handler func(ctx context.Context, msg []byte, offset int64)
 type CloseCallback func(ctx context.Context, err error)
