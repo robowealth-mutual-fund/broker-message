@@ -90,10 +90,10 @@ func (suite *TestSuite) TestConsumeKafkaMessageAutoCommitFalse() {
 }
 
 func (suite *TestSuite) newSuccessHandler() (handler common.Handler) {
-	return func(ctx context.Context, msg []byte) { suite.msgCh <- msg }
+	return func(ctx context.Context, msg []byte, offset int64) { suite.msgCh <- msg }
 }
 func (suite *TestSuite) newOtherSuccessHandler() (handler common.Handler) {
-	return func(ctx context.Context, msg []byte) { suite.otherMsgCh <- msg }
+	return func(ctx context.Context, msg []byte, offset int64) { suite.otherMsgCh <- msg }
 }
 
 func (suite *TestSuite) TestNewBrokerWithInvalidBroker() {
